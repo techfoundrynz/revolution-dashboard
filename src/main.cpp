@@ -83,8 +83,8 @@ int nunck = 127;
 uint32_t filterTime = 0; //for Kalman Filter
 bool filterDelay = 1;
 
-unsigned int maxVal = analogRead(throttle);
-unsigned int minVal = analogRead(throttle);
+unsigned int maxVal = 0;
+unsigned int minVal = 0;
 unsigned int thMax;
 unsigned int thZero;
 unsigned int thMin;
@@ -98,6 +98,12 @@ TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite mainSprite= TFT_eSprite(&tft);
 
 void setup() {
+ pref.begin("thValues", false); //"false" defines read/write access
+ thMax = pref.getUInt("thMax", 0);
+ thZero = pref.getUInt("thZero", 0);
+ thMin = pref.getUInt("thMin", 0);
+ pref.end();
+
  //OTA
  WiFi.mode(WIFI_STA);
  WiFi.begin(ssid, password);
@@ -110,12 +116,6 @@ void setup() {
      type = "filesystem";
   });
  ArduinoOTA.begin();
- //data storage
- pref.begin("thValues", true); //"true" defines a read-only access
- thMax = pref.getUInt("thMax", 0);
- thZero = pref.getUInt("thZero", 0);
- thMin = pref.getUInt("thMin", 0);
- pref.end();
  //serial VESC
  SerialVESC.begin(115200, SERIAL_8N1, 43, 44); //Lilygo Pin43=RX to VescTX, Lilygo Pin44=TX to VescRX
  while (!SerialVESC) {;}
@@ -125,6 +125,8 @@ void setup() {
  pinMode(headlight, OUTPUT);
  pinMode(brakeSw, INPUT);
  pinMode(throttle, INPUT);
+ maxVal = analogRead(throttle);
+ minVal = analogRead(throttle);
  ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
  ledcAttachPin(rearlight, PWM_CHANNEL);
  //display
