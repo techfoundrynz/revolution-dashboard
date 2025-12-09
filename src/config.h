@@ -17,7 +17,6 @@ The smoother acceleration in mode 1 is achieved by reducing the max throttle val
 
 const int dimmBL = 200; // 0-255 dimminig rear light when not braking
 
-bool setMi = 0; // 0 = km / 1 = miles
 
 //This values are independent from VESC Tool, you have to set it too.
 const int wheelDia = 240; //tyre Size in mm, tune this to get correct velocity (also set the same diameter in the VESC Tool)

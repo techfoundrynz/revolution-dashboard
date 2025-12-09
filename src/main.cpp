@@ -23,7 +23,7 @@ https://github.com/Bodmer/TFT_eSPI
 #include <CST816S.h>  //TouchLib
 #include "Wire.h"
 #include "driver/ledc.h" //for PWM
-#include "VescUart.h"
+#include "VescComms.h"
 #include "config.h"
 #include "LiPoCheck.h"
 
@@ -41,9 +41,21 @@ SimpleKalmanFilter thFilter(2, 2, 0.01);
 #include <Preferences.h>
 Preferences pref;
 
+#if VESC_COMM_TYPE == 2
+// Using CAN
+#else
 #include <HardwareSerial.h>
 HardwareSerial SerialVESC(2);
-VescUart UART;
+#endif
+VescComms Vesc;
+
+#if USE_IMPERIAL_UNITS == 1
+  #define CONVERT_UNIT(v) ((v) * 0.621371)
+  #define UNIT_DIST_STR "mi"
+#else
+  #define CONVERT_UNIT(v) (v)
+  #define UNIT_DIST_STR "km"
+#endif
 
 //images & font
 #include "Rev1.h"
@@ -51,6 +63,17 @@ VescUart UART;
 #include "Mot.h"
 #include "Light.h"
 #include "DSEG7.h"
+
+#ifndef VESC_COMM_TYPE
+  #define VESC_COMM_TYPE 1 // 1=UART, 2=CAN
+#endif
+
+#if VESC_COMM_TYPE == 2 && (!defined(VESC_CONTROLLER_ID) || !defined(VESC_OWN_CAN_ID))
+  #error "For CAN communication, VESC_CONTROLLER_ID and VESC_OWN_CAN_ID must be defined in config"
+#endif
+
+#define PIN_TX 44 //Lilygo Pin44=TX to VescRX
+#define PIN_RX 43 //Lilygo Pin43=RX to VescTX
 
 void lockscreen(int x, int y);
 void drawScreen();
@@ -116,11 +139,15 @@ void setup() {
      type = "filesystem";
   });
  ArduinoOTA.begin();
- //serial VESC
- SerialVESC.begin(115200, SERIAL_8N1, 43, 44); //Lilygo Pin43=RX to VescTX, Lilygo Pin44=TX to VescRX
+ //comm VESC
+ #if VESC_COMM_TYPE == 2
+ Vesc.beginCAN(PIN_TX, PIN_RX, VESC_CONTROLLER_ID, VESC_OWN_CAN_ID);
+ #else
+ SerialVESC.begin(115200, SERIAL_8N1, PIN_RX, PIN_TX);
  while (!SerialVESC) {;}
- UART.setSerialPort(&SerialVESC);
- UART.getFWversion();
+ Vesc.setSerialPort(&SerialVESC);
+ #endif
+ Vesc.getFWversion();
  //setup the input & output pins
  pinMode(headlight, OUTPUT);
  pinMode(brakeSw, INPUT);
@@ -210,18 +237,13 @@ void drawScreen() {
   }
  mainSprite.drawRoundRect(60,10,100,15,2,TFT_WHITE);
  //batt txt
- mainSprite.drawString(String(batt)+" V",30,8,2);
- mainSprite.drawString(String(battPerc)+" %",30,26,2);
+ mainSprite.drawString(String(batt)+"V",30,8,2);
+ mainSprite.drawString(String(battPerc)+"%",30,26,2);
  //trip txt
  mainSprite.setTextDatum(0);
  mainSprite.drawString(String("Trip"),10,182,2);
  mainSprite.setTextDatum(2);
- if (setMi == 1) {
-    mainSprite.drawString(String(trip*0.621371,2)+" mi",160,175,4);
- }
- else {
-    mainSprite.drawString(String(trip,2)+" km",160,175,4);
- }
+    mainSprite.drawString(String(CONVERT_UNIT(trip),2)+UNIT_DIST_STR,160,175,4);
  //show throttle reading
  if (showThReading == 1) {
    mainSprite.setTextDatum(0);
@@ -251,7 +273,7 @@ void drawScreen() {
  //speed
  mainSprite.setTextDatum(4);
  mainSprite.loadFont(DSEG7);
- if (setMi == 1) {speed = speed*0.621371;}
+  speed = CONVERT_UNIT(speed);
  if (speed < 0) {speed = 0;}
  else {mainSprite.drawString(String(speed,0),79,102,8);}
  //push Sprite to disp
@@ -357,7 +379,7 @@ void loop() {
     float watt_min = -1500000.0;            //minimum watt value. DEFAULT = - 1500000.0
     float watt_max = 1500000.0 ;            //maximum watt value. DEFAULT =  1500000.0
 
-    UART.setLocalProfile(store, forward_can, divide_by_controllers, current_min_rel, current_max_rel, speed_max_reverse, speed_max, duty_min, duty_max, watt_min, watt_max);
+    Vesc.setLocalProfile(store, forward_can, divide_by_controllers, current_min_rel, current_max_rel, speed_max_reverse, speed_max, duty_min, duty_max, watt_min, watt_max);
     profSet = 1;
   }
 
@@ -388,12 +410,12 @@ void loop() {
   }
 
  //reading VESC data
- if (UART.getVescValues()) {
-    erpm = UART.data.rpm;
-    batt = UART.data.inpVoltage;
-    escT = UART.data.tempFET;
-    motT= UART.data.tempMotor;
-    trip = UART.data.tachometer;
+ if (Vesc.getVescValues()) {
+    erpm = Vesc.data.rpm;
+    batt = Vesc.data.inpVoltage;
+    escT = Vesc.data.tempFET;
+    motT= Vesc.data.tempMotor;
+    trip = Vesc.data.tachometer;
   }
  rpm = erpm/motPol;
  speed = erpm/motPol*wheelDia*3.1415*0.00006;
@@ -430,8 +452,8 @@ void loop() {
     filterTime = millis();
   }
  else {
-   UART.nunchuck.valueY = nunck;
-   UART.setNunchuckValues();
+   Vesc.nunchuck.valueY = nunck;
+   Vesc.setNunchuckValues();
   }
  drawScreen();
 }

@@ -1,12 +1,13 @@
-#ifndef _VESCUART_h
-#define _VESCUART_h
+#ifndef _VESCCOMMS_h
+#define _VESCCOMMS_h
 
 #include <Arduino.h>
+#include "driver/twai.h"
 #include "datatypes.h"
 #include "buffer.h"
 #include "crc.h"
 
-class VescUart
+class VescComms
 {
 	/** Struct to store the telemetry data returned by the VESC */
 	struct dataPackage
@@ -80,7 +81,7 @@ public:
 	/**
 		 * @brief      Class constructor
 		 */
-	VescUart(void);
+	VescComms(void);
 
 	/** Variabel to hold measurements returned from VESC */
 	dataPackage data;
@@ -279,6 +280,52 @@ private:
 		 * @param      len   - Lenght of the array to print
 		 */
 	void serialPrint(uint8_t *data, int len);
+
+    // CAN Support
+    typedef enum {
+        CAN_PACKET_SET_DUTY = 0,
+        CAN_PACKET_SET_CURRENT,
+        CAN_PACKET_SET_CURRENT_BRAKE,
+        CAN_PACKET_SET_RPM,
+        CAN_PACKET_SET_POS,
+        CAN_PACKET_FILL_RX_BUFFER,
+        CAN_PACKET_FILL_RX_BUFFER_LONG,
+        CAN_PACKET_PROCESS_RX_BUFFER,
+        CAN_PACKET_PROCESS_SHORT_BUFFER,
+        CAN_PACKET_STATUS,
+        CAN_PACKET_SET_CURRENT_REL,
+        CAN_PACKET_SET_BRAKE_REL,
+        CAN_PACKET_SET_CURRENT_HANDBRAKE,
+        CAN_PACKET_SET_CURRENT_HANDBRAKE_REL,
+        CAN_PACKET_STATUS_2,
+        CAN_PACKET_STATUS_3,
+        CAN_PACKET_STATUS_4,
+        CAN_PACKET_PING,
+        CAN_PACKET_PONG,
+        CAN_PACKET_DETECT_APPLY_ALL_NOW,
+        CAN_PACKET_DETECT_APPLY_ALL_NOW_LOCAL,
+        CAN_PACKET_CONF_CURRENT_LIMITS,
+        CAN_PACKET_CONF_STORE_CURRENT_LIMITS,
+        CAN_PACKET_CONF_DC_CURRENT_LIMITS,
+        CAN_PACKET_CONF_STORE_DC_CURRENT_LIMITS,
+        CAN_PACKET_CONF_BATTERY_CUT,
+        CAN_PACKET_CONF_STORE_BATTERY_CUT,
+        CAN_PACKET_SETPOS_HANDBRAKE,
+        CAN_PACKET_WAIT_FOR_LINK_STATUS,
+        CAN_PACKET_BLINK_LEDS,
+        CAN_PACKET_STATUS_5,
+        CAN_PACKET_SET_DUTY_EFFECTIVE
+    } CAN_PACKET_ID;
+
+    void beginCAN(int txPin, int rxPin, uint8_t controllerId, uint8_t ownId);
+    bool _useCAN = false;
+    uint8_t _canId = 0;
+    uint8_t _ownId = 0;
+
+private:
+   int sendCanPayload(uint8_t *payload, int len);
+   int receiveCanMessage(uint8_t *payloadReceived);
+   void comm_can_transmit_eid(uint32_t id, const uint8_t *data, uint8_t len);
 };
 
 #endif
