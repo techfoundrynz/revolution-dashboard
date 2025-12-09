@@ -121,6 +121,8 @@ void configureWifi() {
   }
 }
 
+bool wasTouched = false;
+
 void setup() {
  pref.begin("thValues", false); //"false" defines read/write access
  thMax = pref.getUInt("thMax", 0);
@@ -175,24 +177,37 @@ void loop() {
  
   //Lockscreen
  LockMode lastLockMode = lockMode;
+ static unsigned long lastSeenTouch = 0;
+
  while (lock==1 && confMode==0) {
-    if (touch.available()) {
+    bool isTouched = touch.available();
+    
+    if (isTouched) {
+       lastSeenTouch = millis();
        unsigned long currentTouchTime = millis();
        
        if (lockMode == PATTERN) {
            // Pattern Mode: Continuous Drag
-           // If gap > 500ms, consider it a new attempt
            if (currentTouchTime - lastTouchTime > 500) {
               entry = "";
            }
            lastTouchTime = currentTouchTime; 
            lockscreen(touch.data.x, touch.data.y, mode1, mode2, throttleCal);
-           delay(20); 
+           delay(20);
+           wasTouched = true; 
        } else {
-           // PIN Mode: Tap Debounce
-           if (currentTouchTime - lastTouchTime > debounceDelay) {
+           // PIN Mode
+           if (touch.data.y < 80) {
+               // Header Area: Allow continuous calls for Long Press Toggle
                lockscreen(touch.data.x, touch.data.y, mode1, mode2, throttleCal);
-               lastTouchTime = millis();
+               wasTouched = true; 
+           } else {
+               // Keypad Area: Single Press (with Hysteresis)
+               if (!wasTouched) {
+                   wasTouched = true;
+                   lockscreen(touch.data.x, touch.data.y, mode1, mode2, throttleCal);
+                   lastTouchTime = millis();
+               }
            }
        }
        
@@ -204,6 +219,17 @@ void loop() {
            lastLockMode = lockMode;
        }
     } else {
+       // Only reset wasTouched if release is stable (>50ms)
+       if (millis() - lastSeenTouch > 50) {
+           if (wasTouched) {
+               wasTouched = false;
+               // Force redraw to clear highlights in PIN mode
+               if (lockMode == PIN) {
+                   lockscreen(-1, -1, mode1, mode2, throttleCal);
+               }
+           }
+       }
+       
        // Pattern Mode: Reset on Release if incorrect
        if (lockMode == PATTERN && entry.length() > 0) {
            if (millis() - lastTouchTime > 150) { // 150ms stable release
@@ -256,26 +282,27 @@ void loop() {
     mainSprite.pushSprite(0,0);
 
     if (touch.available()) {
-      unsigned long currentTouchTime = millis();
-      if (currentTouchTime - lastTouchTime > debounceDelay) {
-        lastTouchTime = currentTouchTime;
-        if(touch.data.y > 245 && touch.data.y < 295 && touch.data.x > 85) {
-          pref.begin("thValues", false);
-          pref.putUInt("thMax", maxVal); //at 5V input, the Hall Sensor Value schould be 4095 on full throttle
-          pref.putUInt("thZero", throttleRAW); //schould be about 2880, depends on input Voltage ~ 5V
-          pref.putUInt("thMin", minVal); //schould be about 2100, depends on input Voltage ~ 5V
-          pref.end();
-          mainSprite.fillSprite(TFT_BLACK);
-          mainSprite.pushSprite(0,0);
-          delay(100);
-          ESP.restart();
-        }
-        if(touch.data.y > 245 && touch.data.y < 295 && touch.data.x < 85) {
-          mainSprite.fillSprite(TFT_BLACK);
-          mainSprite.pushSprite(0,0);
-          ESP.restart();
-        }
-      }
+       if (!wasTouched) {
+         wasTouched = true;
+         if(touch.data.y > 245 && touch.data.y < 295 && touch.data.x > 85) {
+           pref.begin("thValues", false);
+           pref.putUInt("thMax", maxVal); //at 5V input, the Hall Sensor Value schould be 4095 on full throttle
+           pref.putUInt("thZero", throttleRAW); //schould be about 2880, depends on input Voltage ~ 5V
+           pref.putUInt("thMin", minVal); //schould be about 2100, depends on input Voltage ~ 5V
+           pref.end();
+           mainSprite.fillSprite(TFT_BLACK);
+           mainSprite.pushSprite(0,0);
+           delay(100);
+           ESP.restart();
+         }
+         if(touch.data.y > 245 && touch.data.y < 295 && touch.data.x < 85) {
+           mainSprite.fillSprite(TFT_BLACK);
+           mainSprite.pushSprite(0,0);
+           ESP.restart();
+         }
+       }
+    } else {
+       wasTouched = false;
     }
   }
 
@@ -299,15 +326,16 @@ void loop() {
   }
 
  //switch headlight
- if (touch.available()) {
-    unsigned long currentTouchTime = millis();
-    if (currentTouchTime - lastTouchTime > debounceDelay) {
-      lastTouchTime = currentTouchTime;
-//      if(touch.data.x == 85 && touch.data.y == 360) //only the touch button
-        if(touch.data.y >= 212)
-        lightF =! lightF;     
+ //switch headlight
+ bool isTouched = touch.available();
+ if (isTouched) {
+    if (!wasTouched) {
+       wasTouched = true;
+       if(touch.data.y >= 212) lightF = !lightF;     
     }
-  }
+ } else {
+    wasTouched = false;
+ }
 
   if (lightF == HIGH) {
     digitalWrite(headlight, HIGH);

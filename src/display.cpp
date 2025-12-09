@@ -114,7 +114,9 @@ void drawPatternLock(int x, int y, int mode1, int mode2, int throttleCal) {
                 mainSprite.fillCircle(cx, cy, 8, TFT_WHITE); 
                 mainSprite.drawCircle(cx, cy, 12, TFT_WHITE); 
             } else {
-                mainSprite.drawCircle(cx, cy, 5, TFT_DARKGREY); 
+                // Inactive nodes: Thicker and lighter
+                mainSprite.drawCircle(cx, cy, 5, TFT_SILVER); 
+                mainSprite.drawCircle(cx, cy, 6, TFT_SILVER); 
             }
         }
     }
@@ -147,7 +149,7 @@ void drawPinLock(int x, int y, int mode1, int mode2, int throttleCal) {
 
     int xpos[3]={3,58,113};
     int ypos[4]={73,128,183,238};
-    char chars[4][3]={{'1','2','3'},{'4','5','6'},{'7','8','9'},{' ','0','x'}};
+    char chars[4][3]={{'1','2','3'},{'4','5','6'},{'7','8','9'},{' ','0',' '}};
     int sx=10, sy=10;
     
     for(int i=0;i<4;i++){
@@ -155,28 +157,35 @@ void drawPinLock(int x, int y, int mode1, int mode2, int throttleCal) {
         for(int j=0;j<3;j++){
              if(x>=xpos[j] && x<=xpos[j]+54) sx=j;
              
-             if(sx==j && sy==i)    
-                mainSprite.drawRoundRect(xpos[j],ypos[i],54,54,2,TFT_DARKGREY);
-             else
-                mainSprite.drawRoundRect(xpos[j],ypos[i],54,54,2,TFT_WHITE);  
-                
-             mainSprite.drawString(String(chars[i][j]),xpos[j]+27,ypos[i]+30,4);
+             if(chars[i][j] != ' ') {
+                 int cx = xpos[j] + 27;
+                 int cy = ypos[i] + 27;
+    
+                 if(sx==j && sy==i) {
+                    // Pressed State: 2px wide circle
+                    mainSprite.drawCircle(cx, cy, 24, THEME_COLOR);
+                    mainSprite.drawCircle(cx, cy, 23, THEME_COLOR);
+                 } else {
+                    // Normal State: 2px wide circle
+                    mainSprite.drawCircle(cx, cy, 24, TFT_WHITE);
+                    mainSprite.drawCircle(cx, cy, 23, TFT_WHITE);
+                 }
+                    
+                 mainSprite.drawString(String(chars[i][j]), cx, cy + 3, 4);
+             }
         }
     }
     
-    // Draw decorations (bottom corners)
-    mainSprite.drawRoundRect(3,238,54,54,2,TFT_BLACK); // ? Masking?
-    mainSprite.drawRoundRect(113,238,54,54,2,TFT_BLACK); // ? Masking?
+    // Mask decorations removed as we simply skip drawing the empty space now
     
     // Process Input if Valid
     if (sx < 3 && sy < 4) {
-        if(chars[sy][sx]=='x') 
-           entry="";
-        else if(chars[sy][sx]!=' ')
+        if(chars[sy][sx]!=' ') {
            entry += String(chars[sy][sx]);
+        }
     }
 
-    mainSprite.drawString(entry,85,52,4); 
+    mainSprite.drawString(entry,85,52,4);
     
     // Check Codes
     if(entry.toInt() == mode1) lock=0;
@@ -268,13 +277,13 @@ void drawScreen() {
  mainSprite.pushImage(120,230,40,40,Mot);
  //mode
  if (modeS==1) {mainSprite.drawRoundRect(75,286,22,27,3,TFT_RED);}
- else {mainSprite.drawRoundRect(75,286,22,27,3,TFT_DARKGREY);}
+ else {mainSprite.drawRoundRect(75,286,22,27,5,TFT_DARKGREY);}
  mainSprite.setTextDatum(4);
  mainSprite.drawString(String("S"),86,299,2);
  //light
  mainSprite.pushImage(65,230,40,40,Light);
  if (lightF==1) {mainSprite.drawRoundRect(62,229,46,41,3,THEME_COLOR);}
- else {mainSprite.drawRoundRect(62,229,46,41,3,TFT_DARKGREY);}
+ else {mainSprite.drawRoundRect(62,229,46,41,5,TFT_DARKGREY);}
  //speed
  mainSprite.setTextDatum(4);
  mainSprite.loadFont(DSEG7);
