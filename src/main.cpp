@@ -282,7 +282,7 @@ void drawScreen() {
 
 void loop() {
  //OTA
- if (WiFi.waitForConnectResult() == WL_CONNECTED) {
+ if (WiFi.status() == WL_CONNECTED) {
    WIFI = 1; }
  else {WIFI = 0;}
  ArduinoOTA.handle();
