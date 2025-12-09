@@ -52,6 +52,9 @@ VescUart UART;
 #include "Light.h"
 #include "DSEG7.h"
 
+void lockscreen(int x, int y);
+void drawScreen();
+
 //setup PWM for rearlight
 const int PWM_CHANNEL = 1;
 const int PWM_FREQ = 500;
