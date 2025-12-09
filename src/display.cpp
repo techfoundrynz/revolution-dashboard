@@ -47,50 +47,180 @@ void initDisplay() {
   mainSprite.setSwapBytes(true); 
 }
 
+LockMode lockMode = PATTERN;
+
+void drawPatternLock(int x, int y, int mode1, int mode2, int throttleCal) {
+    mainSprite.fillSprite(TFT_BLACK);
+    
+    // Status Text
+    mainSprite.setTextDatum(4);
+    mainSprite.drawString("Locked", 85, 25, 4);
+
+    // Grid Config
+    int startX = 35;
+    int startY = 100;
+    int spacing = 50;
+    
+    // Check Touch Input & Update Entry
+    int hitNode = 0;
+    for(int r=0; r<3; r++) {
+        for(int c=0; c<3; c++) {
+            int cx = startX + c*spacing;
+            int cy = startY + r*spacing;
+            int id = r*3 + c + 1;
+            
+            // Check Input radius 20
+            if (x != -1 && abs(x-cx) < 20 && abs(y-cy) < 20) {
+                hitNode = id;
+            }
+        }
+    }
+    
+    if (hitNode > 0) {
+        String s = String(hitNode);
+        if (entry.indexOf(s) == -1) { // Unique nodes only
+            entry += s;
+        }
+    }
+    
+    // Draw Connections
+    for (int i=0; i < (int)entry.length() - 1; i++) {
+        int n1 = String(entry.charAt(i)).toInt();
+        int n2 = String(entry.charAt(i+1)).toInt();
+        
+        int r1 = (n1-1)/3; int c1 = (n1-1)%3;
+        int x1 = startX + c1*spacing;
+        int y1 = startY + r1*spacing;
+        
+        int r2 = (n2-1)/3; int c2 = (n2-1)%3;
+        int x2 = startX + c2*spacing;
+        int y2 = startY + r2*spacing;
+        
+        // Draw thick line
+        mainSprite.drawLine(x1, y1, x2, y2, TFT_WHITE);
+        mainSprite.drawLine(x1+1, y1, x2+1, y2, TFT_WHITE);
+        mainSprite.drawLine(x1, y1+1, x2, y2+1, TFT_WHITE);
+    }
+
+    // Draw Nodes
+    for(int r=0; r<3; r++) {
+        for(int c=0; c<3; c++) {
+            int cx = startX + c*spacing;
+            int cy = startY + r*spacing;
+            int id = r*3 + c + 1;
+            
+            // Highlight if in entry
+            if (entry.indexOf(String(id)) != -1) {
+                mainSprite.fillCircle(cx, cy, 8, TFT_WHITE); 
+                mainSprite.drawCircle(cx, cy, 12, TFT_WHITE); 
+            } else {
+                mainSprite.drawCircle(cx, cy, 5, TFT_DARKGREY); 
+            }
+        }
+    }
+    
+    // Check Codes
+    if (entry.length() > 0) {
+        long code = entry.toInt();
+        if(code == mode1) {
+             lock=0;
+        }
+        if(code == mode2) {
+             modeS=1; 
+             lock=0;
+        }
+        if(code == throttleCal) {
+             confMode=1;
+        }
+    }
+    
+    mainSprite.pushSprite(0,0);
+}
+
+void drawPinLock(int x, int y, int mode1, int mode2, int throttleCal) {
+    mainSprite.fillSprite(TFT_BLACK);
+    mainSprite.setTextColor(TFT_WHITE,TFT_BLACK);    
+    mainSprite.setTextDatum(4);
+
+    // Status Text
+    mainSprite.drawString("Locked", 85, 25, 4);
+
+    int xpos[3]={3,58,113};
+    int ypos[4]={73,128,183,238};
+    char chars[4][3]={{'1','2','3'},{'4','5','6'},{'7','8','9'},{' ','0','x'}};
+    int sx=10, sy=10;
+    
+    for(int i=0;i<4;i++){
+        if(y>=ypos[i] && y<=ypos[i]+54) sy=i;
+        for(int j=0;j<3;j++){
+             if(x>=xpos[j] && x<=xpos[j]+54) sx=j;
+             
+             if(sx==j && sy==i)    
+                mainSprite.drawRoundRect(xpos[j],ypos[i],54,54,2,TFT_DARKGREY);
+             else
+                mainSprite.drawRoundRect(xpos[j],ypos[i],54,54,2,TFT_WHITE);  
+                
+             mainSprite.drawString(String(chars[i][j]),xpos[j]+27,ypos[i]+30,4);
+        }
+    }
+    
+    // Draw decorations (bottom corners)
+    mainSprite.drawRoundRect(3,238,54,54,2,TFT_BLACK); // ? Masking?
+    mainSprite.drawRoundRect(113,238,54,54,2,TFT_BLACK); // ? Masking?
+    
+    // Process Input if Valid
+    if (sx < 3 && sy < 4) {
+        if(chars[sy][sx]=='x') 
+           entry="";
+        else if(chars[sy][sx]!=' ')
+           entry += String(chars[sy][sx]);
+    }
+
+    mainSprite.drawString(entry,85,52,4); 
+    
+    // Check Codes
+    if(entry.toInt() == mode1) lock=0;
+    if(entry.toInt() == mode2) { modeS=1; lock=0; }
+    if(entry.toInt() == throttleCal) confMode=1;
+    
+    // Auto-reset if 4 digits and incorrect
+    if (entry.length() >= 4 && lock == 1 && confMode == 0) {
+        mainSprite.pushSprite(0,0); // Ensure user sees the 4th digit
+        delay(300);
+        entry = ""; 
+        // Next frame will draw empty
+    } else {
+        mainSprite.pushSprite(0,0);
+    }
+}
+
 void lockscreen(int x, int y, int mode1, int mode2, int throttleCal) {
-
- tft.fillScreen(TFT_BLACK);
- tft.setTextColor(TFT_WHITE,TFT_BLACK);    
- tft.setTextDatum(4);
-
- int xpos[3]={3,58,113};
- int ypos[4]={73,128,183,238};
- char chars[4][3]={{'1','2','3'},{'4','5','6'},{'7','8','9'},{' ','0','x'}};
- int sx=10, sy=10;
- for(int i=0;i<4;i++){if(y>=ypos[i] && y<=ypos[i]+54)
- sy=i;
- for(int j=0;j<3;j++){if(x>=xpos[j] && x<=xpos[j]+54)
- sx=j;
- if(sx==j && sy==i)    
-  tft.drawRoundRect(xpos[j],ypos[i],54,54,2,TFT_DARKGREY);
- else
-  tft.drawRoundRect(xpos[j],ypos[i],54,54,2,TFT_WHITE);  
-  tft.drawRoundRect(3,238,54,54,2,TFT_BLACK);
-  tft.drawRoundRect(113,238,54,54,2,TFT_BLACK);
-  tft.drawString(String(chars[i][j]),xpos[j]+27,ypos[i]+30,4);
- if(x>=xpos[j] && x<=xpos[j]+54)
- sx=j;
- }}
-              
- if(chars[sy][sx]=='x') //clear entry
-   entry="";
- else
-   entry=entry+String(chars[sy][sx]);
-   
- if(entry.toInt() == mode1) {
-   lock=0;
-  }
-
- if(entry.toInt() == mode2) {
-   modeS=1;
-   lock=0;
-  }
-
-  tft.drawString(entry,85,40,6); //draw touched entry
-
- if(entry.toInt() == throttleCal) {
-   confMode = 1;
-  }
+    // Check Toggle (Long Press on "Locked" text)
+    // Area: Centered 85, 25. Width 100, Height 50. => X: 35-135, Y: 0-50
+    static unsigned long btnStart = 0;
+    static bool btnTriggered = false;
+    
+    if (x > 35 && x < 135 && y > 0 && y < 50) {
+        if (btnStart == 0) {
+            btnStart = millis();
+            btnTriggered = false;
+        } else {
+             if (millis() - btnStart > 1000 && !btnTriggered) {
+                 lockMode = (lockMode == PATTERN) ? PIN : PATTERN;
+                 entry = "";
+                 btnTriggered = true;
+             }
+        }
+    } else {
+        btnStart = 0;
+        btnTriggered = false;
+    }
+    
+    if (lockMode == PATTERN) {
+        drawPatternLock(x, y, mode1, mode2, throttleCal);
+    } else {
+        drawPinLock(x, y, mode1, mode2, throttleCal);
+    }
 }
 
 void drawScreen() {
@@ -98,7 +228,7 @@ void drawScreen() {
  mainSprite.fillSprite(TFT_BLACK);
  mainSprite.unloadFont(); //to draw all other txt before DSEG7 font
  //WIFI connection
- mainSprite.setTextColor(TFT_BLUE,TFT_BLACK);
+ mainSprite.setTextColor(THEME_COLOR,TFT_BLACK);
  mainSprite.setTextDatum(4);
  if (WIFI == 1)
    mainSprite.drawString("WIFI connected",110,37,2);
@@ -143,7 +273,7 @@ void drawScreen() {
  mainSprite.drawString(String("S"),86,299,2);
  //light
  mainSprite.pushImage(65,230,40,40,Light);
- if (lightF==1) {mainSprite.drawRoundRect(62,229,46,41,3,TFT_BLUE);}
+ if (lightF==1) {mainSprite.drawRoundRect(62,229,46,41,3,THEME_COLOR);}
  else {mainSprite.drawRoundRect(62,229,46,41,3,TFT_DARKGREY);}
  //speed
  mainSprite.setTextDatum(4);

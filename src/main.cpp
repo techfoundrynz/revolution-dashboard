@@ -61,6 +61,7 @@ VescComms Vesc;
 
 #define PIN_TX 44 //Lilygo Pin44=TX to VescRX
 #define PIN_RX 43 //Lilygo Pin43=RX to VescTX
+#define DEVICE_NAME "revolution-dashboard"
 
 void lockscreen(int x, int y);
 void drawScreen();
@@ -106,24 +107,36 @@ unsigned long debounceDelay = 300;  //delay in milliseconds to wait for next val
 
 CST816S touch (18, 17, 21, 16);	// sda, scl, rst, irq
 
+void configureWifi() {
+  if (!WIFI && WiFi.status() == WL_CONNECTED) {
+    WIFI = true;
+    
+    // Setup mDNS
+    MDNS.begin(DEVICE_NAME);
+    MDNS.addService("http", "tcp", 80);
+    
+    // Setup OTA
+    ArduinoOTA.setHostname(DEVICE_NAME);
+    ArduinoOTA.begin();
+  }
+}
+
 void setup() {
  pref.begin("thValues", false); //"false" defines read/write access
  thMax = pref.getUInt("thMax", 0);
  thZero = pref.getUInt("thZero", 0);
  thMin = pref.getUInt("thMin", 0);
  pref.end();
+ 
+ // Load Lock Mode
+ pref.begin("lockCfg", false);
+ lockMode = (LockMode) pref.getUInt("lockMode", (int)PATTERN);
+ pref.end();
 
  //OTA
  WiFi.mode(WIFI_STA);
+ WiFi.setHostname(DEVICE_NAME);
  WiFi.begin(ssid, password);
- ArduinoOTA
- .onStart([]() {
-   String type;
-   if (ArduinoOTA.getCommand() == U_FLASH)
-     type = "sketch";
-   else // U_SPIFFS
-     type = "filesystem";
-  });
  ArduinoOTA.begin();
  //comm VESC
  #if VESC_COMM_TYPE == 2
@@ -157,20 +170,47 @@ void setup() {
 
 void loop() {
  //OTA
- if (WiFi.status() == WL_CONNECTED) {
-   WIFI = 1; }
- else {WIFI = 0;}
+ configureWifi();
  ArduinoOTA.handle();
  
- //Lockscreen
+  //Lockscreen
+ LockMode lastLockMode = lockMode;
  while (lock==1 && confMode==0) {
     if (touch.available()) {
-      unsigned long currentTouchTime = millis();
-      if (currentTouchTime - lastTouchTime > debounceDelay) {
-        lastTouchTime = currentTouchTime;
-        if(touch.data.y > 75 && touch.data.y < 290)
-          lockscreen(touch.data.x,touch.data.y, mode1, mode2, throttleCal);
-      }
+       unsigned long currentTouchTime = millis();
+       
+       if (lockMode == PATTERN) {
+           // Pattern Mode: Continuous Drag
+           // If gap > 500ms, consider it a new attempt
+           if (currentTouchTime - lastTouchTime > 500) {
+              entry = "";
+           }
+           lastTouchTime = currentTouchTime; 
+           lockscreen(touch.data.x, touch.data.y, mode1, mode2, throttleCal);
+           delay(20); 
+       } else {
+           // PIN Mode: Tap Debounce
+           if (currentTouchTime - lastTouchTime > debounceDelay) {
+               lockscreen(touch.data.x, touch.data.y, mode1, mode2, throttleCal);
+               lastTouchTime = millis();
+           }
+       }
+       
+       // Save Lock Mode if changed
+       if (lockMode != lastLockMode) {
+           pref.begin("lockCfg", false);
+           pref.putUInt("lockMode", (int)lockMode);
+           pref.end();
+           lastLockMode = lockMode;
+       }
+    } else {
+       // Pattern Mode: Reset on Release if incorrect
+       if (lockMode == PATTERN && entry.length() > 0) {
+           if (millis() - lastTouchTime > 150) { // 150ms stable release
+               entry = "";
+               lockscreen(-1, -1, mode1, mode2, throttleCal); // Clear visuals
+           }
+       }
     }
   }
 
