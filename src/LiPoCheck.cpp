@@ -22,7 +22,7 @@ along with this program.If not, see <http://www.gnu.org/licenses/>.
 #define MAXVOLRANGE     4.2
 #define MAXNUMBERCELLS   12
 
-int CountCells(float voltage) {
+uint8_t CountCells(float voltage) {
 	
 	for (int i = 1; i <= MAXNUMBERCELLS; i++)
 	{
@@ -34,7 +34,7 @@ int CountCells(float voltage) {
 	return 0;
 }
 
-int CapCheckPerc(float voltage, int cells) {
+uint8_t CapCheckPerc(float voltage, int cells) {
 	float voltageCell = 0;
 	int ind = 0;
 
@@ -45,7 +45,7 @@ int CapCheckPerc(float voltage, int cells) {
 
 	if (voltageCell >=4.20)
 	{
-		return (100);
+		return 100;
 	}
 
 	while (!(voltageCell<=liionDC[0][ind+1] && voltageCell > liionDC[0][ind])&& ind<=10)
@@ -58,7 +58,7 @@ int CapCheckPerc(float voltage, int cells) {
 	{
 		float CapacPers = (((liionDC[1][ind + 1] - liionDC[1][ind])/ (liionDC[0][ind + 1] - liionDC[0][ind]))*(voltageCell - liionDC[0][ind])) + liionDC[1][ind];
 
-		return (CapacPers * 100);
+		return CapacPers * 100;
 	}
 	else
 	{

@@ -20,11 +20,12 @@ along with this program.If not, see <http://www.gnu.org/licenses/>.
 
 #ifndef _LIPOCHECK_h
 #define _LIPOCHECK_h
+#include <stdint.h>
 
 const float liionDC[2][11] = { { 3.0, 3.300,3.450,3.580,3.680,3.750,3.820,3.890,3.96,4.030,4.100 } ,{ 0.000, 0.100,0.200,0.300,0.400,0.500,0.600,0.700,0.800,0.900,1.000 } };
-int CountCells(float voltage);
+uint8_t CountCells(float voltage);
 
-int CapCheckPerc(float voltage, int cells);
+uint8_t CapCheckPerc(float voltage, int cells);
 
 #endif
 

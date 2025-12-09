@@ -205,7 +205,7 @@ void drawScreen() {
  if (battPerc>15) {
   mainSprite.fillRoundRect(60,10,battPerc,15,2,TFT_GREEN);
   }
- else {
+  else if (battPerc > 0) {
   mainSprite.fillRoundRect(60,10,battPerc,15,2,TFT_RED);
   }
  mainSprite.drawRoundRect(60,10,100,15,2,TFT_WHITE);
