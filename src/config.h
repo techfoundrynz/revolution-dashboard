@@ -46,5 +46,3 @@ bool stopOnBrake = 1; // 1 = the motors can not accelerate whie using the disc b
 #define PIN_BUTTON_1         0
 #define PIN_BUTTON_2         14
 #define PIN_BAT_VOLT         4
-
-CST816S touch (18, 17, 21, 16);	// sda, scl, rst, irq
