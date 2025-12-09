@@ -228,6 +228,13 @@ public:
 		 * @param	   watt_max maximum watt value. DEFAULT =  1500000.0
 		 */
 	void setLocalProfile(bool store, bool forward_can, bool divide_by_controllers, float current_min_rel, float current_max_rel, float speed_max_reverse, float speed_max, float duty_min, float duty_max, float watt_min, float watt_max);
+    
+    /**
+     * @brief Send Keep Alive Ping (0x0B57ED1F) to Boosted BMS
+     */
+    void sendKeepAlive(void);
+
+    void beginCAN(int txPin, int rxPin, uint8_t controllerId, uint8_t ownId);
 
 private:
 	/** Variabel to hold the reference to the Serial object to use for UART */
@@ -317,7 +324,6 @@ private:
         CAN_PACKET_SET_DUTY_EFFECTIVE
     } CAN_PACKET_ID;
 
-    void beginCAN(int txPin, int rxPin, uint8_t controllerId, uint8_t ownId);
     bool _useCAN = false;
     uint8_t _canId = 0;
     uint8_t _ownId = 0;

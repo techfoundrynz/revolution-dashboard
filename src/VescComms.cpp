@@ -30,7 +30,16 @@ void VescComms::beginCAN(int txPin, int rxPin, uint8_t controllerId, uint8_t own
   _ownId = ownId;
 
   twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT((gpio_num_t)txPin, (gpio_num_t)rxPin, TWAI_MODE_NORMAL);
-  twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
+  twai_timing_config_t t_config;
+  #if CAN_BAUD_RATE == 250000
+    t_config = TWAI_TIMING_CONFIG_250KBITS();
+  #elif CAN_BAUD_RATE == 500000
+    t_config = TWAI_TIMING_CONFIG_500KBITS();
+  #elif CAN_BAUD_RATE == 1000000
+    t_config = TWAI_TIMING_CONFIG_1MBITS();
+  #else
+    t_config = TWAI_TIMING_CONFIG_250KBITS(); // Default
+  #endif
   twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
   if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
@@ -805,6 +814,13 @@ void VescComms::setDuty(float duty) {
   buffer_append_int32(payload, (int32_t)(duty * 100000), &index);
 
   packSendPayload(payload, 5);
+}
+
+void VescComms::sendKeepAlive(void) {
+    if (_useCAN) {
+        uint8_t payload[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+        comm_can_transmit_eid(0x0B57ED1F, payload, 8);
+    }
 }
 
 void VescComms::setLocalProfile(bool store, bool forward_can, bool divide_by_controllers, float current_min_rel,
